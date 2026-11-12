@@ -53,6 +53,8 @@ public class ClickGuiScreen extends Screen {
 	private @Nullable SliderDrag sliderDrag;
 	private @Nullable KeybindSetting listening;
 	private String search = "";
+	/** Mouse-wheel scroll of the whole panel area. Only for viewing; never saved. */
+	private float scrollOffset;
 	private long lastFrame = Util.getMillis();
 	private @Nullable String hoverDescription;
 
@@ -226,8 +228,8 @@ public class ClickGuiScreen extends Screen {
 		if (panel.headerContains(mx, my)) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 				dragging = panel;
-				dragOffsetX = mx - panel.state().x;
-				dragOffsetY = my - panel.state().y;
+				dragOffsetX = mx - panel.x();
+				dragOffsetY = my - panel.y();
 				dragStartX = mx;
 				dragStartY = my;
 				dragMoved = false;
@@ -250,8 +252,9 @@ public class ClickGuiScreen extends Screen {
 			if (dragMoved) {
 				ConfigManager.PanelState state = dragging.state();
 				state.x = (float) (event.x() - dragOffsetX);
-				state.y = (float) (event.y() - dragOffsetY);
+				state.y = (float) (event.y() - dragOffsetY - scrollOffset);
 				clamp(state);
+				state.y = Math.max(-scrollOffset, Math.min(state.y, height - HEADER_HEIGHT - scrollOffset));
 			}
 			return true;
 		}
@@ -285,11 +288,13 @@ public class ClickGuiScreen extends Screen {
 		if (panel != null && panel.scrollSlider(mouseX, mouseY, scrollY)) {
 			return true;
 		}
-		// Scroll everything up/down so tall panels fit on small screens.
+		// Scroll the whole view when tall panels don't fit on a small screen.
+		int lowest = 0;
 		for (Panel p : panels) {
-			ConfigManager.PanelState state = p.state();
-			state.y = (float) Math.max(-2000, Math.min(height - HEADER_HEIGHT, state.y + scrollY * 12));
+			lowest = Math.max(lowest, Math.round(p.state().y) + HEADER_HEIGHT + p.visibleContentHeight() + 1);
 		}
+		float minOffset = Math.min(0, height - 20 - lowest);
+		scrollOffset = (float) Math.max(minOffset, Math.min(0, scrollOffset + scrollY * 14));
 		return true;
 	}
 
@@ -362,7 +367,7 @@ public class ClickGuiScreen extends Screen {
 	/** Centre of a category header in GUI pixels. Used by the automated in-game test. */
 	public int[] locatePanel(Category category) {
 		ConfigManager.PanelState state = ConfigManager.panel(category);
-		return new int[]{Math.round(state.x) + PANEL_WIDTH / 2, Math.round(state.y) + HEADER_HEIGHT / 2};
+		return new int[]{Math.round(state.x) + PANEL_WIDTH / 2, Math.round(state.y + scrollOffset) + HEADER_HEIGHT / 2};
 	}
 
 	private boolean matchesSearch(Module module) {
@@ -448,7 +453,7 @@ public class ClickGuiScreen extends Screen {
 		}
 
 		int y() {
-			return Math.round(state().y);
+			return Math.round(state().y + scrollOffset);
 		}
 
 		boolean headerContains(double mx, double my) {
