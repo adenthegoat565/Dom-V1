@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"package": "com.domclient.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"CameraMixin",
+		"KeyboardHandlerMixin",
+		"KeyMappingAccessor",
+		"LightmapRenderStateExtractorMixin",
+		"MouseHandlerMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

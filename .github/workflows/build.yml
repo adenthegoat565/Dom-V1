@@ -1,0 +1,153 @@
+name: Build installer
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build mod + installer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the Dom Client mod
+        working-directory: mod
+        run: ./gradlew build --no-daemon
+
+      - name: Put the mod jar inside the installer
+        run: |
+          rm -f installer/payload/*.jar
+          cp mod/build/libs/dom-client-*.jar installer/payload/
+          ls -la installer/payload
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build the Windows installer (.exe)
+        working-directory: installer
+        run: |
+          VERSION=$(grep '^mod_version=' ../mod/gradle.properties | cut -d= -f2)
+          dotnet build -c Release -p:Version="$VERSION"
+          ls -la bin/Release/net48
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dom-V1-Installer
+          path: installer/bin/Release/net48/Dom-V1-Installer.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dom-client-mod
+          path: mod/build/libs/dom-client-*.jar
+          if-no-files-found: error
+
+  windows-test:
+    name: Run the installer on Windows
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Dom-V1-Installer
+
+      - name: Silent install into a test .minecraft folder
+        shell: pwsh
+        run: |
+          $mc = Join-Path $env:RUNNER_TEMP ".minecraft"
+          New-Item -ItemType Directory -Force $mc | Out-Null
+          $existing = '{"profiles":{"old":{"name":"My old install","type":"custom","lastVersionId":"1.21.4","icon":"Grass"}},"settings":{"enableAdvanced":false},"version":3}'
+          Set-Content -Path (Join-Path $mc "launcher_profiles.json") -Value $existing -Encoding utf8NoBOM
+          Set-Content -Path (Join-Path $mc "launcher_profiles_microsoft_store.json") -Value $existing -Encoding utf8NoBOM
+          $log = Join-Path $env:RUNNER_TEMP "install.log"
+          $p = Start-Process -FilePath .\Dom-V1-Installer.exe -ArgumentList @("--silent", "--minecraft-dir", "`"$mc`"", "--ram", "4", "--log", "`"$log`"") -Wait -PassThru
+          Get-Content $log | Select-Object -Last 15
+          if ($p.ExitCode -ne 0) { throw "Installer exited with code $($p.ExitCode)" }
+
+          foreach ($file in "launcher_profiles.json", "launcher_profiles_microsoft_store.json") {
+            $json = Get-Content (Join-Path $mc $file) -Raw | ConvertFrom-Json
+            $profile = $json.profiles.'dom-client-26.2'
+            if (-not $profile) { throw "Dom Client profile missing from $file" }
+            if (-not $json.profiles.old) { throw "Existing profile was lost from $file" }
+            if ($profile.javaArgs -notlike "-Xmx4G*") { throw "RAM setting not applied in $file" }
+            Write-Host "$file -> $($profile.name) / $($profile.lastVersionId) / $($profile.gameDir)"
+          }
+          $version = Get-ChildItem (Join-Path $mc "versions") -Directory | Where-Object Name -like "fabric-loader-*-26.2"
+          if (-not $version) { throw "Fabric version folder missing" }
+          $mods = Get-ChildItem (Join-Path $mc "DomClient-26.2\mods") -Filter *.jar
+          $mods | Format-Table Name, Length
+          foreach ($needed in "dom-client-*", "voicechat-fabric-*", "fabric-api-*") {
+            if (-not ($mods | Where-Object Name -like $needed)) { throw "Missing mod $needed" }
+          }
+
+  game-test:
+    name: In-game test (Minecraft 26.2 + Simple Voice Chat)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Download the modpack (Simple Voice Chat, Sodium, ...)
+        run: python3 scripts/download_mods.py --dest "$RUNNER_TEMP/extra-mods" --exclude fabric-api
+
+      - name: Launch Minecraft and click through the GUI
+        working-directory: mod
+        run: xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClientGameTest --no-daemon "-PextraModsDir=$RUNNER_TEMP/extra-mods"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game-test-screenshots
+          path: mod/build/run/clientGameTest/screenshots/
+          if-no-files-found: ignore
+
+  release:
+    name: Publish the installer
+    needs: [build, windows-test]
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Dom-V1-Installer
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep '^mod_version=' mod/gradle.properties | cut -d= -f2)
+          TAG="v$VERSION"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" Dom-V1-Installer.exe --clobber
+          else
+            gh release create "$TAG" Dom-V1-Installer.exe \
+              --title "Dom Client $VERSION for Minecraft 26.2" \
+              --notes-file .github/release-notes.md \
+              --target "$GITHUB_SHA" \
+              --latest
+          fi

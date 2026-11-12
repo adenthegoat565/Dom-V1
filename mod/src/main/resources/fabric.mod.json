@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "domclient",
+	"version": "${version}",
+	"name": "Dom Client",
+	"description": "A click GUI with dropdown panels, HUD and quality-of-life modules, and quick controls for Simple Voice Chat. Press Right Shift in game.",
+	"authors": ["Dom-V1"],
+	"contact": {
+		"sources": "https://github.com/adenthegoat565/Dom-V1"
+	},
+	"license": "MIT",
+	"icon": "assets/domclient/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["com.domclient.client.DomClient"],
+		"modmenu": ["com.domclient.client.integration.ModMenuIntegration"],
+		"voicechat": ["com.domclient.client.integration.DomVoicechatPlugin"]
+	},
+	"mixins": [
+		{
+			"config": "domclient.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"voicechat": "*",
+		"modmenu": "*"
+	}
+}

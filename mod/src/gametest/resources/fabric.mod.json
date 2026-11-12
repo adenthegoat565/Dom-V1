@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"id": "domclient-test",
+	"version": "1.0.0",
+	"name": "Dom Client in-game tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-client-gametest": ["com.domclient.test.DomClientGameTest"]
+	},
+	"depends": {
+		"domclient": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}

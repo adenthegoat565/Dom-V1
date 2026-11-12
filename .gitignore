@@ -1,0 +1,19 @@
+# Gradle / Minecraft dev
+mod/.gradle/
+mod/build/
+mod/run/
+mod/out/
+mod/bin/
+*.iml
+.idea/
+
+# Installer build output
+installer/bin/
+installer/obj/
+installer/payload/*.jar
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.part
+*.tmp

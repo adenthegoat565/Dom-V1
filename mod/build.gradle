@@ -1,0 +1,93 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	maven {
+		name = 'Henkelmax (Simple Voice Chat API)'
+		url = 'https://maven.maxhenkel.de/repository/public'
+		content { includeGroup 'de.maxhenkel.voicechat' }
+	}
+	maven {
+		name = 'TerraformersMC (Mod Menu)'
+		url = 'https://maven.terraformersmc.com/releases'
+		content { includeGroup 'com.terraformersmc' }
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	// Optional: -PextraModsDir=/path/to/mods loads extra mod jars (for example Simple Voice Chat)
+	// into runClient / runClientGameTest, so the click GUI can be tested next to them.
+	def extraMods = providers.gradleProperty("extraModsDir")
+	runs {
+		configureEach {
+			if (extraMods.isPresent()) {
+				vmArg "-Dfabric.addMods=${extraMods.get()}"
+			}
+		}
+	}
+
+	mods {
+		"domclient" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "domclient-test"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Optional integrations. Only the APIs are compiled against; nothing is bundled.
+	compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = "UTF-8"
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from(rootProject.file("../LICENSE")) {
+		rename { "${it}_$projectName" }
+	}
+}

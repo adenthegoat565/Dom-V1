@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- .NET Framework 4.8 ships with Windows 10 (1903+) and 11, so the .exe runs without installing anything. -->
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Dom-V1-Installer</AssemblyName>
+    <RootNamespace>DomInstaller</RootNamespace>
+    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>Dom Client</Product>
+    <AssemblyTitle>Dom Client Installer</AssemblyTitle>
+    <Description>Installs Fabric, Simple Voice Chat and the Dom Client click GUI for Minecraft 26.2 into the Minecraft Launcher.</Description>
+    <Company>Dom-V1</Company>
+    <Copyright>MIT License</Copyright>
+    <Version Condition="'$(Version)' == ''">1.0.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Deterministic>true</Deterministic>
+    <DebugType>none</DebugType>
+    <!-- Keep the build output to the single .exe. -->
+    <GenerateSupportedRuntime>true</GenerateSupportedRuntime>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Everything the installer writes is embedded, so the .exe is a single file. -->
+    <EmbeddedResource Include="payload\*.json;payload\*.png;payload\*.jar" LogicalName="payload/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="assets\logo.png" LogicalName="assets/logo.png" />
+    <EmbeddedResource Include="assets\icon.ico" LogicalName="assets/icon.ico" />
+  </ItemGroup>
+
+</Project>

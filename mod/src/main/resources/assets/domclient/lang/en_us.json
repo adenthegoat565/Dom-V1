@@ -1,0 +1,7 @@
+{
+	"key.category.domclient.main": "Dom Client",
+	"key.domclient.click_gui": "Open Click GUI",
+	"key.domclient.zoom": "Zoom (hold)",
+	"modmenu.nameTranslation.domclient": "Dom Client",
+	"modmenu.descriptionTranslation.domclient": "Click GUI with HUD and quality-of-life modules plus Simple Voice Chat controls. Press Right Shift in game."
+}
