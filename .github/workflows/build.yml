@@ -124,7 +124,9 @@ jobs:
 
   release:
     name: Publish the installer
-    needs: [build, windows-test]
+    # Gated on the build and the in-game test. The Windows smoke test runs alongside but doesn't
+    # hold up the release, because hosted Windows machines can sit in the queue for a long time.
+    needs: [build, game-test]
     if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
